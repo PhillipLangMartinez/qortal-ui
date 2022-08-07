@@ -31,7 +31,8 @@
     "qchat": "Q-CHAT",
     "groupmanagement": "GROUP MANAGEMENT",
     "puzzles": "PUZZLES",
-    "nodemanagement": "NODE MANAGEMENT"
+    "nodemanagement": "NODE MANAGEMENT",
+    "sponsorshiplist": "SPONSORSHIP"
   },
   "login": {
     "login": "Login",
