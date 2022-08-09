@@ -5,7 +5,7 @@ const parentEpml = new Epml({ type: 'WINDOW', source: window.parent });
 
 export class SponsorshipList extends LitElement {
 	static properties = {
-		version: { String },
+		version: { type: String },
 	};
 
 	constructor() {
