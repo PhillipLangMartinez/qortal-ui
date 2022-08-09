@@ -122,12 +122,12 @@ const generateForPlugins = () => {
 			out: 'plugins/core/minting/minting-info.js',
 		},
 		{
-			in: 'plugins/core/puzzles/puzzles.src.js',
-			out: 'plugins/core/puzzles/puzzles.js',
+			in: 'plugins/core/become-minter/become-minter.src.js',
+			out: 'plugins/core/become-minter/become-minter.js',
 		},
 		{
-			in: 'plugins/core/sponsorship-list/sponsorship-list.src.js',
-			out: 'plugins/core/sponsorship-list/sponsorship-list.js',
+			in: 'plugins/core/puzzles/puzzles.src.js',
+			out: 'plugins/core/puzzles/puzzles.js',
 		},
 	].map((file) => {
 		return generateRollupConfig(

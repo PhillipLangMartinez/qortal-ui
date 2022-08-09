@@ -9,7 +9,8 @@ import '@vaadin/icons';
 
 import '../functional-components/side-menu.js';
 import '../functional-components/side-menu-item.js';
-
+import '../functional-components/my-button.js';
+import './start-minting';
 class SidenavMenu extends connect(store)(LitElement) {
 	static get properties() {
 		return {
@@ -17,6 +18,7 @@ class SidenavMenu extends connect(store)(LitElement) {
 			urls: { type: Object },
 			nodeType: { type: String, reflect: true },
 			theme: { type: String, reflect: true },
+			addressInfo: { type: Object },
 		};
 	}
 
@@ -45,6 +47,13 @@ class SidenavMenu extends connect(store)(LitElement) {
 					border-top: 1px solid var(--border);
 					outline: none;
 				}
+
+				.start-minting-wrapper {
+					position: absolute;
+					bottom: 130px;
+					left: 50%;
+					transform: translateX(calc(-50% - 10px));
+				}
 			`,
 		];
 	}
@@ -56,6 +65,7 @@ class SidenavMenu extends connect(store)(LitElement) {
 		this.theme = localStorage.getItem('qortalTheme')
 			? localStorage.getItem('qortalTheme')
 			: 'light';
+		this.addressInfo = {};
 	}
 
 	render() {
@@ -65,6 +75,8 @@ class SidenavMenu extends connect(store)(LitElement) {
 					${this.renderNodeTypeMenu()} ${this.renderNodeManagement()}
 				</side-menu>
 			</div>
+
+			<start-minting></start-minting>
 		`;
 	}
 
@@ -93,6 +105,9 @@ class SidenavMenu extends connect(store)(LitElement) {
 	}
 
 	renderNodeTypeMenu() {
+		const addressInfo = this.addressInfo;
+		const isMinter = addressInfo?.error !== 124 && +addressInfo?.level > 0;
+
 		if (this.nodeType === 'lite') {
 			return html`
 				<side-menu-item
@@ -129,15 +144,26 @@ class SidenavMenu extends connect(store)(LitElement) {
 			`;
 		} else {
 			return html`
-				<side-menu-item
-					label="${translate('sidemenu.mintingdetails')}"
-					href="/app/minting"
-				>
-					<vaadin-icon
-						icon="vaadin:info-circle"
-						slot="icon"
-					></vaadin-icon>
-				</side-menu-item>
+				${isMinter
+					? html`<side-menu-item
+							label="${translate('sidemenu.mintingdetails')}"
+							href="/app/minting"
+					  >
+							<vaadin-icon
+								icon="vaadin:info-circle"
+								slot="icon"
+							></vaadin-icon>
+					  </side-menu-item>`
+					: html`<side-menu-item
+							label="${translate('sidemenu.becomeAMinter')}"
+							href="/app/become-minter"
+					  >
+							<vaadin-icon
+								icon="vaadin:info-circle"
+								slot="icon"
+							></vaadin-icon>
+					  </side-menu-item>`}
+
 				<side-menu-item
 					label="${translate('sidemenu.wallets')}"
 					href="/app/wallet"
@@ -211,15 +237,6 @@ class SidenavMenu extends connect(store)(LitElement) {
 						slot="icon"
 					></vaadin-icon>
 				</side-menu-item>
-				<side-menu-item
-					label="${translate('sidemenu.sponsorshiplist')}"
-					href="/app/sponsorship-list"
-				>
-					<vaadin-icon
-						icon="vaadin:user-star"
-						slot="icon"
-					></vaadin-icon>
-				</side-menu-item>
 			`;
 		}
 	}
@@ -246,6 +263,7 @@ class SidenavMenu extends connect(store)(LitElement) {
 	stateChanged(state) {
 		this.config = state.config;
 		this.urls = state.app.registeredUrls;
+		this.addressInfo = state.app.accountInfo.addressInfo;
 	}
 }
 
