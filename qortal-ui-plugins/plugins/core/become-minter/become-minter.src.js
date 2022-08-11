@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { Epml } from '../../../epml.js';
 import '../components/ButtonIconCopy.js';
 import { use, translate, registerTranslateConfig } from 'lit-translate';
-import { blocksNeed } from './utils/blocks-needed.js';
+import { blocksNeed } from './utils/blocks-needed.src.js';
 
 registerTranslateConfig({
 	loader: (lang) => fetch(`/language/${lang}.json`).then((res) => res.json()),
