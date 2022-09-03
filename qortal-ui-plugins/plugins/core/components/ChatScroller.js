@@ -148,6 +148,10 @@ class ChatScroller extends LitElement {
         .other-message {
             background: #f1f1f1;
             border: 2px solid #dedede;
+            transition: all 0.2s ease-in-out;
+        }
+        .other-message:hover {
+            background: #e2e2e2;
         }
 
         .other-message:after {
@@ -169,6 +173,13 @@ class ChatScroller extends LitElement {
 
         .float-right {
             float: right;
+        }
+
+        .hover-menu {
+            display: none;
+            position: absolute;
+            top: 0;
+            right: 0;
         }
 
         .clearfix:after {
@@ -206,6 +217,7 @@ class ChatScroller extends LitElement {
     }
 
     firstUpdated() {
+        console.log("sup3")
         this.viewElement = this.shadowRoot.getElementById('viewElement')
         this.upObserverElement = this.shadowRoot.getElementById('upObserver')
         this.downObserverElement = this.shadowRoot.getElementById('downObserver')
@@ -217,6 +229,11 @@ class ChatScroller extends LitElement {
         this.viewElement.scrollTop = this.viewElement.scrollHeight + 50
     }
 
+    handleMouseover() {
+        console.log("sup bitches");
+        // document.body.style.cssText = "display:block"
+    }
+    
     chatMessageTemplate(messageObj) {
         const hidemsg = this.hideMessages
 
@@ -246,6 +263,7 @@ class ChatScroller extends LitElement {
             `
         } else {
             return `
+            <div>
                 <li class="clearfix">
                     <div class="message-data ${messageObj.sender === this.myAddress ? "" : ""}">
                         <span class="message-data-name">${nameMenu}</span>
@@ -253,8 +271,16 @@ class ChatScroller extends LitElement {
                         <span class="message-data-time"><message-time timestamp=${messageObj.timestamp}></message-time></span>
                     </div>
                     <div class="message-data-avatar" style="width:42px; height:42px; ${messageObj.sender === this.myAddress ? "float:left;" : "float:left;"} margin:3px;">${avatarImg}</div>
-                    <div id="messageContent" class="message ${messageObj.sender === this.myAddress ? "my-message float-left" : "other-message float-left"}">${this.emojiPicker.parse(this.escapeHTML(messageObj.decodedMessage))}</div>
+                    <div id="messageContent" class="message ${messageObj.sender === this.myAddress 
+                    ? "my-message float-left" 
+                    : "other-message float-left"}" ${onclick=(`${this.handleMouseover}`)}>
+                    ${this.emojiPicker.parse(this.escapeHTML(messageObj.decodedMessage))}
+                    </div>
                 </li>
+                <div class="hover-menu">
+                <p>Test</p>
+                </div>
+            </div>
             `
         }
     }
