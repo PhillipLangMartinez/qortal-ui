@@ -5,7 +5,9 @@ import { EmojiPicker } from 'emoji-picker-js';
 import { Epml } from '../../../epml.js';
 import '@material/mwc-icon'
 import '@material/mwc-checkbox'
-// import { addAutoLoadImageChat } from "../../../../qortal-ui-core/src/redux/app/app-actions.js";
+// import ffmpeg from 'ffmpeg.js';
+import './ChatRecordControls.js'
+import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
 const parentEpml = new Epml({ type: 'WINDOW', source: window.parent });
 class ChatTextEditor extends LitElement {
@@ -36,7 +38,8 @@ class ChatTextEditor extends LitElement {
             isEnabledChatEnter: {type: Boolean},
             openGifModal: { type: Boolean },
             setOpenGifModal: { attribute: false },
-            chatId: {type: String}
+            chatId: {type: String},
+            saveAudioToQDN: { attribute: false}
 		}
 	}
 
@@ -376,10 +379,126 @@ mwc-checkbox::shadow .mdc-checkbox::after, mwc-checkbox::shadow .mdc-checkbox::b
         this.userName = window.parent.reduxStore.getState().app.accountInfo.names[0]
         this.theme = localStorage.getItem('qortalTheme') ? localStorage.getItem('qortalTheme') : 'light'
         this.editor = null
+
 	}
 
+
+    async recordVoice() {
+        const audioChunks = [];
+        const constraints = { audio: true };
+        const options = {
+            audioBitsPerSecond: 64000
+          };
+        let mediaRecorder;
+        let recordedData;
+        let isRecording = false;
+        let isPaused = false
+
+        const getAudioMetadata = async (recordedBlob) => {
+            const metadata = new MediaMetadata({
+              duration: NaN,
+            });
+            const audio = new Audio();
+            audio.src = URL.createObjectURL(recordedBlob);
+            await new Promise(resolve => {
+              audio.addEventListener('loadedmetadata', () => {
+                metadata.duration = audio.duration;
+                console.log({duration:  audio.duration})
+                resolve();
+              });
+            });
+            console.log({metadata})
+            return new Blob([JSON.stringify(metadata)], { type: "application/json" });
+          };
+
+        const handleStartRecording = () => {
+            if (isRecording) return;
+            startRecording();
+            isRecording = true;
+          };
+          const handleStopRecording = async () => {
+              if (!isRecording) return;
+              const recordedBlob = await stopRecording();
+              const metadata = { duration: 100 }; // Replace 10 with the actual duration in seconds
+              const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+              const audioBlobWithMetadata = new Blob([recordedBlob, metadataBlob], { type: 'audio/ogg; codecs=opus' });
+console.log({audioBlobWithMetadata})
+            //   const metadata = await getAudioMetadata(recordedBlob);
+            //   const blobWithMetadata = new Blob([recordedBlob, metadata], { type: recordedBlob.type });
+            //   await this.saveAudioToQDN(recordedBlob);
+            await  this._sendMessage({
+                type: 'voice',
+                audioFile: audioBlobWithMetadata
+              });
+               resetRecorder();
+              isRecording = false;
+            };
+
+        const buttonStart = this.shadowRoot.querySelector("#play-icon");
+        buttonStart.addEventListener("click", handleStartRecording);
+      
+        const buttonStop = this.shadowRoot.querySelector("#send-icon");
+        buttonStop.addEventListener("click", handleStopRecording);
+      
+        const startRecording = async () => {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            mediaRecorder = new MediaRecorder(stream, options);
+      
+            mediaRecorder.addEventListener("dataavailable", (event) => {
+                console.log('dataavail', event.data)
+              audioChunks.push(event.data);
+            });
+      
+            mediaRecorder.addEventListener("stop", () => {
+              recordedData = new Blob(audioChunks, { type: "audio/ogg; codecs=opus" });
+            //   audioChunks.length = 0;
+            });
+      
+            mediaRecorder.start();
+            console.log("Recording started");
+      
+          } catch (err) {
+            console.error("Failed to start recording", err);
+          }
+        };
+      
+        const stopRecording = async () => {
+            if (!mediaRecorder) return;
+            
+            return new Promise((resolve) => {
+              mediaRecorder.addEventListener("stop", () => {
+                const recordedData = new Blob(audioChunks, { type: "audio/ogg; codecs=opus" });
+                audioChunks.length = 0;
+                console.log({ recordedData });
+                resolve(recordedData);
+              });
+              mediaRecorder.stop();
+              console.log("Recording stopped");
+            });
+          };
+        
+
+        const resetRecorder = () => {
+            mediaRecorder = null;
+            audioChunks.length = 0;
+            isRecording = false;
+            isPaused = false;
+            buttonStop.removeEventListener("click", handleStopRecording);
+            buttonStart.removeEventListener("click", handleStartRecording);
+          };
+      
+      
+      
+      
+      }
 	render() {
 		return html`
+        <div style="position: fixed; bottom: 20px; right: 20px;z-index: 500000">
+        <chat-record-controls></chat-record-controls>
+            <!-- <button class="button-start">Start</button>
+            <button class="button-stop">Stop</button> -->
+        </div>
             <div 
              class=${["chatbar-container", "chatbar-buttons", this.iframeId !=="_chatEditorDOM" && 'hide-styling'].join(" ")}
              style="align-items: center;justify-content:space-between">
@@ -498,6 +617,19 @@ mwc-checkbox::shadow .mdc-checkbox::after, mwc-checkbox::shadow .mdc-checkbox::b
                         name="myImage" 
                         accept="image/*, .doc, .docx, .pdf, .zip, .pdf, .txt, .odt, .ods, .xls, .xlsx, .ppt, .pptx" />
                     </div>     
+                </div>
+                <div 
+                    style=${this.iframeId === "privateMessage" ? "display: none" : "display: block"} 
+                    class="file-picker-container" 
+                    @click=${(e) => {
+                        this.recordVoice()
+                    }}>
+                    <vaadin-icon
+                        class="paperclip-icon"
+                        icon="vaadin:microphone"
+                        slot="icon"
+                    >
+                    </vaadin-icon>     
                 </div>
                 <textarea style="color: var(--black);" tabindex='1' ?autofocus=${true} ?disabled=${this.isLoading || this.isLoadingMessages} id="messageBox" rows="1"></textarea>
                 <div id=${this.iframeId}
@@ -665,6 +797,8 @@ mwc-checkbox::shadow .mdc-checkbox::after, mwc-checkbox::shadow .mdc-checkbox::b
         this.chatMessageSize = 0;
         this._sendMessage(props, this.editor.getJSON());
     }
+
+    
 
     getMessageSize(message){
         try {

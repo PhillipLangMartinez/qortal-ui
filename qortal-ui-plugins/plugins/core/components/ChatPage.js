@@ -1539,6 +1539,7 @@ class ChatPage extends LitElement {
                                 ?openGifModal=${this.openGifModal}
                                 .setOpenGifModal=${(val)=> this.setOpenGifModal(val)}
                                 chatId=${this.chatId}
+                                .saveAudioToQDN=${(val)=> this.saveAudioToQDN(val)}
                                 >                           
                             </chat-text-editor>
                     </div>
@@ -2047,6 +2048,32 @@ class ChatPage extends LitElement {
             } else {
                this.editor.commands.focus('end')
             }
+        }
+    }
+
+    async saveAudioToQDN(compressedFile){
+        console.log('2', {compressedFile})
+        if (this.webWorkerFile) {
+            this.webWorkerFile.terminate()
+            this.webWorkerFile = null
+        } 
+        this.webWorkerFile = new WebWorkerFile();
+        try {
+            await publishData({
+                registeredName: 'Phil',
+                file : compressedFile,
+                service: 'AUDIO',
+                identifier: 'test',
+                parentEpml,
+                metaData: undefined,
+                uploadType: 'file',
+                selectedAddress: this.selectedAddress,
+                worker: this.webWorkerFile
+            })
+           console.log('DONE')
+        } catch (error) {
+           console.log({error})
+            return
         }
     }
 
@@ -2906,6 +2933,28 @@ class ChatPage extends LitElement {
 
     async fetchChatMessages(chatId) {
 
+        const pingWebSocket = (webSocket) => {
+            if(!webSocket) return
+            if (webSocket.readyState === WebSocket.OPEN) {
+              webSocket.send('ping');
+          
+            //   const timeoutId = setTimeout(() => {
+            //     webSocket.close();
+            //     console.log('WebSocket connection closed due to ping timeout.');
+            //   }, 5000); // Close the WebSocket connection if no pong message is received within 5 seconds.
+          
+            //   webSocket.onmessage = (event) => {
+            //     console.log('ping', event.data, event)
+            //     if (event.data === 'pong') {
+            //       clearTimeout(timeoutId);
+            //       console.log('Received pong message, WebSocket connection is still open.');
+            //     }
+            //   };
+            } else {
+              console.log('WebSocket connection is not open.');
+            }
+          };
+
         const initDirect = async (cid, noInitial) => {
             let initial = 0
 
@@ -2933,6 +2982,7 @@ class ChatPage extends LitElement {
 
             // Message Event
             this.webSocket.onmessage = async (e) => {
+                console.log('e- websocket', e)
                 if (initial === 0) {
                     if(noInitial) return
                     const cachedData = null
@@ -2956,6 +3006,21 @@ class ChatPage extends LitElement {
                     this.processMessages(getInitialMessages, true)
 
                     initial = initial + 1
+
+                    const checkWebSocketState = () => {
+                        if (this.webSocket.readyState === WebSocket.OPEN) {
+                          console.log('WebSocket connection is open!');
+                          pingWebSocket(this.webSocket)
+                        } else if (this.webSocket.readyState === WebSocket.CLOSED) {
+                            restartDirectWebSocket()
+                          console.log('WebSocket connection is closed!');
+                          // Restart the WebSocket connection or display an error message to the user.
+                        }
+                      };
+                      if(this.setIntervalConfirmSocket){
+                        clearInterval(this.setIntervalConfirmSocket)
+                      }
+                     this.setIntervalConfirmSocket = setInterval(checkWebSocketState, 45000); 
 
                 } else {
                     if(e.data){
@@ -3053,6 +3118,21 @@ class ChatPage extends LitElement {
                     this.processMessages(getInitialMessages, true)
 
                     initial = initial + 1
+
+                    const checkWebSocketState = () => {
+                        if (this.webSocket.readyState  === WebSocket.OPEN) {
+                            pingWebSocket(this.webSocket)
+                          console.log('WebSocket connection is open!');
+                        } else if (this.webSocket.readyState === WebSocket.CLOSED) {
+                            restartGroupWebSocket()
+                          console.log('WebSocket connection is closed!');
+                          // Restart the WebSocket connection or display an error message to the user.
+                        }
+                      };
+                      if(this.setIntervalConfirmSocket){
+                        clearInterval(this.setIntervalConfirmSocket)
+                      }
+                     this.setIntervalConfirmSocket = setInterval(checkWebSocketState, 45000); 
                 } else {
                     if(e.data){
                         this.processMessages(JSON.parse(e.data), false)
@@ -3446,6 +3526,54 @@ class ChatPage extends LitElement {
                 }],
                 repliedTo: '',
                 version: 2
+            };
+            const stringifyMessageObject = JSON.stringify(messageObject);
+            this.sendMessage(stringifyMessageObject, typeMessage);
+        } else if (outSideMsg && outSideMsg.type === 'voice') {
+            const id = this.uid();
+            const identifier = `qchat_voice_${id}`;
+            const userName = await getName(this.selectedAddress.address);
+            if (!userName) {
+                parentEpml.request('showSnackBar', get("chatpage.cchange27"));
+                this.isLoading = false;
+                return;
+            }
+
+            
+            if (this.webWorkerFile) {
+                this.webWorkerFile.terminate()
+                this.webWorkerFile = null
+            } 
+            this.webWorkerFile = new WebWorkerFile();
+
+            try {
+                await publishData({
+                    registeredName: userName,
+                    file : outSideMsg.audioFile,
+                    service: 'QCHAT_VOICE',
+                    identifier : identifier,
+                    parentEpml,
+                    metaData: undefined,
+                    uploadType: 'file',
+                    selectedAddress: this.selectedAddress,
+                    worker: this.webWorkerFile
+                });
+         
+            } catch (error) {
+                console.error(error);
+                this.isLoading = false;
+                return;
+            }
+
+            const messageObject = {
+                messageText: '',
+                voice: [{
+                        service: 'QCHAT_VOICE',
+                        name: userName,
+                        identifier: identifier,
+                }],
+                repliedTo: '',
+                version: 4
             };
             const stringifyMessageObject = JSON.stringify(messageObject);
             this.sendMessage(stringifyMessageObject, typeMessage);

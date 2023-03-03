@@ -25,6 +25,7 @@ import axios from "axios";
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight'
+import './ChatAudioPlayer.js'
 
 const parentEpml = new Epml({ type: 'WINDOW', source: window.parent })
 let toggledMessage = {}
@@ -396,6 +397,8 @@ class MessageTemplate extends LitElement {
         let isForwarded = false
         let isEdited = false
         let attachment = null;
+        let voice = null
+        let voiceUrl = null
         try {
             const parsedMessageObj = JSON.parse(this.messageObj.decodedMessage);
             if(+parsedMessageObj.version > 1 && parsedMessageObj.messageText){
@@ -422,6 +425,13 @@ class MessageTemplate extends LitElement {
             }
            if (parsedMessageObj.gifs && Array.isArray(parsedMessageObj.gifs) && parsedMessageObj.gifs.length > 0) {
                 gif = parsedMessageObj.gifs[0];
+            }
+            if (parsedMessageObj.voice && Array.isArray(parsedMessageObj.voice) && parsedMessageObj.voice.length > 0) {
+                voice = parsedMessageObj.voice[0];
+                const myNode = window.parent.reduxStore.getState().app.nodeConfig.knownNodes[window.parent.reduxStore.getState().app.nodeConfig.node];
+                const nodeUrl = myNode.protocol + '://' + myNode.domain + ':' + myNode.port;
+                voiceUrl  = `${nodeUrl}/arbitrary/${voice.service}/${voice.name}/${voice.identifier}?async=true&apiKey=${myNode.apiKey}`;
+               
             }
         } catch (error) {
             console.error(error);
@@ -713,6 +723,13 @@ class MessageTemplate extends LitElement {
                                         class=${[`image-container`, !this.isGifLoaded ? 'defaultSize' : ''].join(' ')}
                                         style=${this.isFirstMessage && "margin-top: 10px;"}>
                                             ${gifHTML}
+                                        </div>  
+                                    ` : html``}
+                                    ${voice  ? html`
+                                        <div 
+                                        class=${[`image-container`, !this.isGifLoaded ? 'defaultSize' : ''].join(' ')}
+                                        style=${this.isFirstMessage && "margin-top: 10px;"}>
+                                            <chat-audio-player audioUrl=${voiceUrl || ""}></chat-audio-player>
                                         </div>  
                                     ` : html``}
                                     ${attachment && !isAttachmentDeleted ? 
