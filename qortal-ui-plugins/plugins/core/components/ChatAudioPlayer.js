@@ -17,10 +17,25 @@ class ChatAudioPlayer extends LitElement {
     this.progress = 0.0;
     this.updateProgressInterval = null;
     this.audio = new Audio();
+    this.audio.preload = "metadata";
     this.audio.addEventListener('ended', () => {
       this.playing = false;
       this.stopUpdatingProgress();
     });
+    this.audio.addEventListener('loadedmetadata', () => {
+      console.log('loadedmetadata')
+    });
+    this.audio.addEventListener('canplaythrough', () => { 
+      console.log('canplaythrough')
+     })
+     this.audio.addEventListener('timeupdate',     () => { 
+      console.log('timeupdate')
+         });
+         this.audio.addEventListener('waiting',        () => { 
+          console.log('waiting')
+          });
+
+
   }
 
   static get styles() {
@@ -62,7 +77,7 @@ class ChatAudioPlayer extends LitElement {
         position: relative;
         margin-left: 10px;
         border-radius: 5px;
-        width: 100%;
+        width: 150px;
       }
 
       .progress-bar-fill {
@@ -92,10 +107,32 @@ class ChatAudioPlayer extends LitElement {
     `;
   }
 
-  adjustProgress(event) {
+  firstUpdated(){
+    const audioElement = this.shadowRoot.querySelector('.progress-bar');
+   console.log('audioElement', audioElement.clientWidth)
+  }
+
+  async adjustProgress(event) {
     const progress = event.offsetX / event.target.clientWidth;
+
+    if (this.audio.duration === Infinity) {
+      this.audio.currentTime = 10000000;
+    await  new Promise((res)=> {
+        setTimeout(() => {
+          this.audio.currentTime = 0; // to reset the time, so it starts at the beginning
+          res()
+        }, 1000);
+      })
+  }
     const duration = this.audio.duration;
     const position = duration * progress;
+    console.log({
+      offsetX: event.offsetX,
+      clientWidth: event.target.clientWidth,
+      progress,
+      duration,
+      position
+    })
     this.audio.currentTime = position;
     this.progress = position / duration;
     if (this.audio.seekable.length > 0) {
