@@ -1,95 +1,160 @@
-import { LitElement, html , css, unsafeCSS } from 'lit';
-import Plyr from 'plyr';
-import styles from 'plyr/dist/plyr.css'
+import { LitElement, html, css } from 'lit';
+
 class ChatAudioPlayer extends LitElement {
   static get properties() {
     return {
-      audioUrl: { type: String },
-      audioElement : { attribute: false },
+      src: { type: String },
+      playing: { type: Boolean },
+      volume: { type: Number },
+      progress: { type: Number }
     };
   }
 
-  static get styles() {
-    return css`${unsafeCSS(styles)}`;
-}
-
-
-
   constructor() {
     super();
-    this.audioUrl = '';
-    this.audioElement = null;
-    this.player = null;
+    this.playing = false;
+    this.volume = 1.0;
+    this.progress = 0.0;
+    this.updateProgressInterval = null;
+    this.audio = new Audio();
+    this.audio.addEventListener('ended', () => {
+      this.playing = false;
+      this.stopUpdatingProgress();
+    });
   }
 
-
-  // createRenderRoot() {
-  //   return this;
-  // }
-
-  // createAudioPlayer() {
-  //   this.audioElement = document.createElement('audio');
-  //   this.audioElement.src = this.audioUrl;
-  //   this.player = new Plyr(this.audioElement, {
-  //     controls: ['play', 'progress', 'current-time', 'mute', 'volume'],
-  //   });
-  // }
-
-  // updated(changedProperties) {
-  //   if (changedProperties.has('audioUrl') && this.audioUrl) {
-  //     console.log('create', this.audioUrl)
-  //     this.createAudioPlayer();
-  //   }
-  // }
-
-
-
-  firstUpdated(){
-
-    function checkForDuration(cb =()=> {}) {
-      if (audio.duration === Infinity) {
-        audio.currentTime = 1e101;
-        audio.ontimeupdate = function() {
-          this.ontimeupdate = () => { return; };
-          cb();
-        };
-      } else {
-        cb();
+  static get styles() {
+    return css`
+      .audio-player {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px;
+        flex-direction: column;
       }
-    }
-    const audio = this.shadowRoot.getElementById('player');
-    this.player = new Plyr(audio, {
-      seekTime: 10
-    });
 
-    console.log({audio})
-// Wait for the audio metadata to be loaded
-audio.addEventListener('loadedmetadata', function() {
-  checkForDuration(() => {
-   
-  audio.duration
+      .play-button {
+        width: 50px;
+        height: 50px;
+        border: none;
+        background-color: #2196f3;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        margin-right: 10px;
+      }
 
-  });
-});
+      .play-button.playing {
+        background-color: #f44336;
+      }
+
+      .slider {
+        flex: 1;
+      }
+
+      .progress-bar {
+        height: 5px;
+        background-color: #e0e0e0;
+        position: relative;
+        margin-left: 10px;
+        border-radius: 5px;
+        width: 100%;
+      }
+
+      .progress-bar-fill {
+        height: 100%;
+        background-color: #2196f3;
+        border-radius: 5px;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: ${this.progress * 100}%;
+        transition: width 0.1s ease-in-out;
+      }
+    `;
   }
 
   render() {
-    console.log('hello', this.audioUrl, {element: this.audioElement})
-    if (!this.audioUrl) {
-      return html``;
-    }
-
-    return html` 
-    
-    <div>
-    <audio controls id="player" preload="metadata">
-      <source src=${this.audioUrl} type="audio/mpeg">
-      Your browser does not support the audio element.
-    </audio>
-  </div>
-  
+    return html`
+      <div class="audio-player">
+        <button class="play-button ${this.playing ? 'playing' : ''}" @click="${this.togglePlaying}">
+          ${this.playing ? 'pause' : 'play_arrow'}
+        </button>
+        <input type="range" min="0" max="100" step="1" class="slider" @input="${this.adjustVolume}" .value="${this.volume * 100}">
+        <div class="progress-bar" @click="${this.adjustProgress}">
+          <div class="progress-bar-fill" style="width: ${this.progress * 100}%;"></div>
+        </div>
+      </div>
     `;
   }
-}
 
-customElements.define('chat-audio-player', ChatAudioPlayer);
+  adjustProgress(event) {
+    const progress = event.offsetX / event.target.clientWidth;
+    const duration = this.audio.duration;
+    const position = duration * progress;
+    this.audio.currentTime = position;
+    this.progress = position / duration;
+    if (this.audio.seekable.length > 0) {
+      console.log('Audio file is seekable');
+    } else {
+      console.log('Audio file is not seekable');
+    }
+  }
+
+  updated(changedProperties) {
+    if (changedProperties.has('src')) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', this.src, true);
+      xhr.responseType = 'blob';
+      xhr.onload = () => {
+        const headers = xhr.getAllResponseHeaders();
+        const blob = xhr.response;
+        const url = URL.createObjectURL(blob);
+        const byteLength = blob.size;
+        const contentRange = `bytes 0-${byteLength}/${byteLength}`;
+        const contentType = xhr.getResponseHeader('Content-Type');
+        this.audio.src = url;
+        this.dispatchEvent(new CustomEvent('loaded', { detail: { headers, byteLength, contentRange, contentType } }));
+      };
+      xhr.send();
+    }
+    if (changedProperties.has('volume')) {
+      this.audio.volume = this.volume;
+    }
+  }
+
+  togglePlaying() {
+    if (this.playing) {
+      this.audio.pause();
+      this.playing = false;
+      this.stopUpdatingProgress();
+      } else {
+      this.audio.play();
+      this.playing = true;
+      this.startUpdatingProgress();
+      }
+      }
+      
+      adjustVolume(event) {
+      this.audio.volume = event.target.value / 100;
+      this.volume = this.audio.volume;
+      }
+      
+      startUpdatingProgress() {
+      this.updateProgressInterval = setInterval(() => {
+      const duration = this.audio.duration;
+      const position = this.audio.currentTime;
+      this.progress = position / duration;
+      }, 100);
+      }
+      
+      stopUpdatingProgress() {
+      clearInterval(this.updateProgressInterval);
+      }
+      }
+      
+      customElements.define('chat-audio-player', ChatAudioPlayer);

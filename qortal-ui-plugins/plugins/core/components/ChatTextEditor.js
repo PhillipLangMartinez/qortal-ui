@@ -5,9 +5,7 @@ import { EmojiPicker } from 'emoji-picker-js';
 import { Epml } from '../../../epml.js';
 import '@material/mwc-icon'
 import '@material/mwc-checkbox'
-// import ffmpeg from 'ffmpeg.js';
 import './ChatRecordControls.js'
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
 const parentEpml = new Epml({ type: 'WINDOW', source: window.parent });
 class ChatTextEditor extends LitElement {

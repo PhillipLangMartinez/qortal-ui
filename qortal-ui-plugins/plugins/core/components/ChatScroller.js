@@ -729,7 +729,7 @@ class MessageTemplate extends LitElement {
                                         <div 
                                         class=${[`image-container`, !this.isGifLoaded ? 'defaultSize' : ''].join(' ')}
                                         style=${this.isFirstMessage && "margin-top: 10px;"}>
-                                            <chat-audio-player audioUrl=${voiceUrl || ""}></chat-audio-player>
+                                            <chat-audio-player src=${voiceUrl || ""}></chat-audio-player>
                                         </div>  
                                     ` : html``}
                                     ${attachment && !isAttachmentDeleted ? 
