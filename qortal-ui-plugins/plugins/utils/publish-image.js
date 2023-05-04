@@ -1,3 +1,4 @@
+import axios from 'axios'
 const getApiKey = () => {
 	const myNode =
 		window.parent.reduxStore.getState().app.nodeConfig.knownNodes[
@@ -5,6 +6,29 @@ const getApiKey = () => {
 		]
 	let apiKey = myNode.apiKey
 	return apiKey
+}
+
+async function streamFile(file, url) {
+	const config = {
+		headers: {
+			'Content-Type': file.type,
+		},
+		onUploadProgress: (event) => {
+			if (event.lengthComputable) {
+				const progress = (event.loaded / event.total) * 100;
+				console.log(`Progress: ${progress.toFixed(2)}%`);
+			}
+		},
+	};
+
+	try {
+		const response = await axios.post(url, file, config);
+		console.log('File streamed successfully');
+		return response.data;
+	} catch (error) {
+		console.error('Failed to stream file:', error);
+		throw error;
+	}
 }
 
 export const publishData = async ({
@@ -167,10 +191,10 @@ export const publishData = async ({
 				if(isBase64){
 					postBody = file
 				}
-				if(!isBase64){
-				let fileBuffer = new Uint8Array(await file.arrayBuffer())
-				postBody = Buffer.from(fileBuffer).toString("base64")
-				}
+				// if(!isBase64){
+				// let fileBuffer = new Uint8Array(await file.arrayBuffer())
+				// postBody = Buffer.from(fileBuffer).toString("base64")
+				// }
 				
 			}
 		
@@ -211,14 +235,65 @@ export const publishData = async ({
 			if(tag5 != null && tag5 != "undefined"){
 				uploadDataUrl = uploadDataUrl + '&tags=' + encodeURIComponent(tag5)
 			}
-			
-			let uploadDataRes = await parentEpml.request("apiCall", {
-				type: "api",
-				method: "POST",
-				url: `${uploadDataUrl}`,
-				body: `${postBody}`,
-			})
-			return uploadDataRes
+
+			const stream = new ReadableStream({
+				async start(controller) {
+					const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+					let offset = 0;
+
+					for (let i = 0; i < totalChunks; i++) {
+						const chunk = file.slice(offset, offset + CHUNK_SIZE);
+						const arrayBuffer = await readAsArrayBuffer(chunk);
+						controller.enqueue(arrayBuffer);
+
+						offset += CHUNK_SIZE;
+					}
+
+					controller.close();
+				},
+			});
+
+			const myNode = window.parent.reduxStore.getState().app.nodeConfig.knownNodes[window.parent.reduxStore.getState().app.nodeConfig.node]
+			const nodeUrl = myNode.protocol + '://' + myNode.domain + ':' + myNode.port
+			const url = `${nodeUrl}${uploadDataUrl}`
+			const response = await streamFile(file, url);
+			// await streamFile(file, url);
+			// const response = await fetch(url, {
+			// 	method: 'POST',
+			// 	headers: {
+			// 		'Content-Type': file.type,
+			// 	},
+			// 	body: stream,
+			// });
+
+			// if (!response.ok) {
+			// 	throw new Error(`Failed to stream file to server: ${response.statusText}`);
+			// }
+			// console.log('File streamed successfully');
+			// console.log({ url })
+			// const response = await fetch(url, {
+			// 	method: 'POST',
+			// 	headers: {
+			// 		'Content-Type': file.type,
+			// 	},
+			// 	body: file.stream(),
+			// });
+
+
+			// if (!response.ok) {
+			// 	throw new Error(`Failed to stream file to server: ${response.statusText}`);
+			// }
+
+			// console.log({ response })
+			// return await response.json()
+
+			// let uploadDataRes = await parentEpml.request("apiCall", {
+			// 	type: "api",
+			// 	method: "POST",
+			// 	url: `${uploadDataUrl}`,
+			// 	body: `${postBody}`,
+			// })
+			// return uploadDataRes
 		}
 	}
 	try {

@@ -910,7 +910,7 @@ class WebBrowser extends LitElement {
 
 				case actions.PUBLISH_QDN_RESOURCE: {
 					// optional fields: encrypt:boolean recipientPublicKey:string
-					const requiredFields = ['service', 'name', 'data64'];
+					const requiredFields = ['service', 'name'];
 					const missingFields = [];
 
 					requiredFields.forEach((field) => {
@@ -985,14 +985,14 @@ class WebBrowser extends LitElement {
 							this.loader.show();
 							const resPublish = await publishData({
 								registeredName: encodeURIComponent(name),
-								file: data64,
+								file: data.file,
 								service: service,
 								identifier: encodeURIComponent(identifier),
 								parentEpml,
-								uploadType: 'file',
+								uploadType: 'binary',
 								selectedAddress: this.selectedAddress,
 								worker: worker,
-								isBase64: true,
+								isBase64: false,
 								filename: filename,
 								title,
 								description,
