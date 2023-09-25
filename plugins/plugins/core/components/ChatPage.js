@@ -2404,15 +2404,23 @@ class ChatPage extends LitElement {
         this.lastMessageRefVisible = props
     }
 
-    insertFile(file) {
+    async insertFile(file) {
         if(file.identifier){
             this.imageFile = file
             this.currentEditor = 'newChat'
+            this.editorImage.commands.focus('end')
             return
         }else
         if (file.type.includes('image')) {
             this.imageFile = file
             this.currentEditor = 'newChat'
+
+            await new Promise((res)=> {
+                setTimeout(()=> {
+                    res()
+                },350)
+            })
+            this.editorImage.commands.focus('end')
             return
         } else {
             this.attachment = file
@@ -3938,7 +3946,6 @@ class ChatPage extends LitElement {
                     parentEpml.request('showSnackBar', get("chatpage.cchange27"))
                     this.isLoading = false
                     this.isUploadingImage = false
-                    this.imageFile = null
                     return
                 }
                 
@@ -4019,6 +4026,12 @@ class ChatPage extends LitElement {
                     } catch (error) {
                         this.isLoading = false
                         this.isUploadingImage = false
+                        if (error.message) {
+                            parentEpml.request('showSnackBar', error.message)
+                        } else {
+                            let err2string = get("chatpage.cchange21")
+                            parentEpml.request('showSnackBar', `${err2string}`)
+                        }
                         return
                     }
         
